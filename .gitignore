@@ -1,0 +1,11 @@
+obj/
+Library/
+Assets/Scenes/
+ProjectSettings/
+
+*.swp
+*.asset
+*.meta
+*.csproj
+*.sln
+*.userprefs
