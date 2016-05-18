@@ -2,6 +2,7 @@ obj/
 Library/
 Assets/Scenes/
 ProjectSettings/
+Temp/
 
 *.swp
 *.asset

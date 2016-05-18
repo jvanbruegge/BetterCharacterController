@@ -32,6 +32,8 @@ public class FootController : MonoBehaviour
 
         RaycastHit hit = ProbeGround();
 
+        DebugDraw.DrawMarker(hit.point, 0.25f, Color.red, 1);
+
         bool isGrounded = ClampPlayer(hit);
 
         this.gameObject.layer = 0;
@@ -54,12 +56,7 @@ public class FootController : MonoBehaviour
                 }
             }
 
-            float y = -Mathf.Sqrt(Mathf.Pow(ownCollider.radius, 2)
-                               - Mathf.Pow(closestPoint.x - transform.position.x - ownCollider.center.x, 2)
-                               - Mathf.Pow(closestPoint.z - transform.position.z - ownCollider.center.z, 2)
-                    ) + transform.position.y + ownCollider.center.y;
-
-            transform.position += Vector3.up * (closestPoint.y - y);
+            transform.position += transform.up * (closestPoint.y - getY(closestPoint));
         }
     }
 
@@ -67,13 +64,10 @@ public class FootController : MonoBehaviour
     {
         if ((hit.point - transform.position - ownCollider.center).magnitude * (1 - tinyTolerance) < ownCollider.radius) return true;
 
-        float y = -Mathf.Sqrt(Mathf.Pow(ownCollider.radius, 2)
-                           - Mathf.Pow(hit.point.x - transform.position.x - ownCollider.center.x, 2)
-                           - Mathf.Pow(hit.point.z - transform.position.z - ownCollider.center.z, 2)
-                ) + transform.position.y + ownCollider.center.y;
-
-        transform.position += Vector3.up * (hit.point.y - y);
         
+
+        transform.position += transform.up * (hit.point.y - getY(hit.point));
+
         return true;
     }
 
@@ -81,15 +75,17 @@ public class FootController : MonoBehaviour
     {
         RaycastHit hit;
 
-        if (Physics.SphereCast(ownCollider.center + transform.position, smallerRadius, -transform.up, out hit, Mathf.Infinity, layerMask))
-        {
-            // By reducing the initial SphereCast's radius by tolerance, our casted sphere no longer fits with
-            // our controller's shape. Reconstruct the sphere cast with the proper radius
-            SimulateSphereCast(hit.normal, out hit);
-
-        }
+        Physics.Raycast(transform.position, -transform.up, out hit, Mathf.Infinity);
 
         return hit;
+    }
+
+    private float getY(Vector3 hit)
+    {
+        return -Mathf.Sqrt(Mathf.Pow(ownCollider.radius, 2)
+                           - Mathf.Pow(hit.x - transform.position.x - ownCollider.center.x, 2)
+                           - Mathf.Pow(hit.z - transform.position.z - ownCollider.center.z, 2)
+                ) + transform.position.y + ownCollider.center.y;
     }
 
     /// <summary>
