@@ -15,6 +15,11 @@ public class FootController : MonoBehaviour
     private int layerMask;
     private float smallerRadius;
 
+	private Vector3 Position
+	{
+		get { return transform.parent.position + transform.localPosition + ownCollider.center;  }
+	}
+
     private void Awake()
     {
         this.ownCollider = GetComponent<SphereCollider>();
@@ -30,62 +35,79 @@ public class FootController : MonoBehaviour
 
         LiftPlayer();
 
-        RaycastHit hit = ProbeGround();
+		RaycastHit hit;
+		bool isGrounded = ProbeGround(out hit);
 
         DebugDraw.DrawMarker(hit.point, 0.25f, Color.red, 1);
 
-        bool isGrounded = ClampPlayer(hit);
+		if(isGrounded)
+		{
+			ClampPlayer(hit);
+		}
 
         this.gameObject.layer = 0;
     }
 
     private void LiftPlayer()
     {
-        Collider[] colliders = Physics.OverlapSphere(transform.position + ownCollider.center, smallerRadius, layerMask);
+        Collider[] colliders = Physics.OverlapSphere(Position, smallerRadius, layerMask);
 
         if (colliders.Length > 0)
         {
-            Vector3 closestPoint = CollisionHelper.ClosestPointOnSurface(colliders[0], transform.position + ownCollider.center, smallerRadius);
+            Vector3 closestPoint = CollisionHelper.ClosestPointOnSurface(colliders[0], Position, smallerRadius);
 
             for (int i = 1; i < colliders.Length; i++)
             {
-                Vector3 newPoint = CollisionHelper.ClosestPointOnSurface(colliders[i], transform.position + ownCollider.center, smallerRadius);
-                if ((newPoint - transform.position).magnitude < (transform.position - closestPoint).magnitude)
+                Vector3 newPoint = CollisionHelper.ClosestPointOnSurface(colliders[i], Position, smallerRadius);
+                if ((newPoint - Position).magnitude < (Position - closestPoint).magnitude)
                 {
                     closestPoint = newPoint;
                 }
             }
 
-            transform.position += transform.up * (closestPoint.y - getY(closestPoint));
+			if(closestPoint.y - (Position - transform.parent.up * ownCollider.radius).y <= stepHeight + tinyTolerance)
+			{
+				transform.parent.position += transform.parent.up * (closestPoint.y - getY(closestPoint));
+			}
         }
     }
 
-    private bool ClampPlayer(RaycastHit hit)
+    private void ClampPlayer(RaycastHit hit)
     {
-        if ((hit.point - transform.position - ownCollider.center).magnitude * (1 - tinyTolerance) < ownCollider.radius) return true;
+        if ((hit.point - Position).magnitude * (1 - tinyTolerance) < ownCollider.radius) return;
 
-        
-
-        transform.position += transform.up * (hit.point.y - getY(hit.point));
-
-        return true;
+		transform.parent.position += transform.parent.up * (hit.point.y - getY(hit.point));
     }
 
-    private RaycastHit ProbeGround()
+    private bool ProbeGround(out RaycastHit raycastHit)
     {
         RaycastHit hit;
 
-        Physics.Raycast(transform.position, -transform.up, out hit, Mathf.Infinity);
+		if (Physics.Raycast(Position, -transform.parent.up, out hit, Mathf.Infinity, layerMask))
+		{
+			if ((hit.point - Position).magnitude > ownCollider.radius + stepHeight + tinyTolerance)
+			{
+				raycastHit = hit;
+				return false;
+			}
+		}
 
-        return hit;
+		if(Physics.SphereCast(Position, smallerRadius, -transform.up, out hit, Mathf.Infinity, layerMask))
+		{
+			SimulateSphereCast(hit.normal, out hit);
+		}
+
+		raycastHit = hit;
+
+		return hit.point.y - getY(hit.point) <= stepHeight;
     }
 
     private float getY(Vector3 hit)
     {
         return -Mathf.Sqrt(Mathf.Pow(ownCollider.radius, 2)
-                           - Mathf.Pow(hit.x - transform.position.x - ownCollider.center.x, 2)
-                           - Mathf.Pow(hit.z - transform.position.z - ownCollider.center.z, 2)
-                ) + transform.position.y + ownCollider.center.y;
+                           - Mathf.Pow(hit.x - Position.x, 2)
+                           - Mathf.Pow(hit.z - Position.z, 2)
+                ) + Position.y + ownCollider.center.y;
     }
 
     /// <summary>
@@ -98,9 +120,9 @@ public class FootController : MonoBehaviour
     /// <returns>True if the raycast is successful</returns>
     private bool SimulateSphereCast(Vector3 groundNormal, out RaycastHit hit)
     {
-        float groundAngle = Vector3.Angle(groundNormal, transform.up) * Mathf.Deg2Rad;
+        float groundAngle = Vector3.Angle(groundNormal, transform.parent.up) * Mathf.Deg2Rad;
 
-        Vector3 secondaryOrigin = transform.position + transform.up * tolerance;
+        Vector3 secondaryOrigin = Position + transform.parent.up * tolerance;
 
         if (!Mathf.Approximately(groundAngle, 0))
         {
@@ -108,13 +130,13 @@ public class FootController : MonoBehaviour
             float vertical = (1.0f - Mathf.Cos(groundAngle)) * ownCollider.radius;
 
             // Retrieve a vector pointing up the slope
-            Vector3 r2 = Vector3.Cross(groundNormal, -transform.up);
+            Vector3 r2 = Vector3.Cross(groundNormal, -transform.parent.up);
             Vector3 v2 = -Vector3.Cross(r2, groundNormal);
 
-            secondaryOrigin += Math3d.ProjectVectorOnPlane(transform.up, v2).normalized * horizontal + transform.up * vertical;
+            secondaryOrigin += Math3d.ProjectVectorOnPlane(transform.parent.up, v2).normalized * horizontal + transform.parent.up * vertical;
         }
 
-        if (Physics.Raycast(secondaryOrigin, -transform.up, out hit, Mathf.Infinity, layerMask))
+        if (Physics.Raycast(secondaryOrigin, -transform.parent.up, out hit, Mathf.Infinity, layerMask))
         {
             // Remove the tolerance from the distance travelled
             hit.distance -= tolerance;
