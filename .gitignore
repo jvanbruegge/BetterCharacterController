@@ -10,3 +10,4 @@ Temp/
 *.csproj
 *.sln
 *.userprefs
+*.suo
