@@ -11,9 +11,14 @@ public class FootController : MonoBehaviour
     private const float tolerance = 0.05f;
     private const float tinyTolerance = 0.01f;
 
+	private float gravity = 0.5f; //TODO: Move to gravity script
+
+	private Gravity currentGravity;
     private SphereCollider ownCollider;
     private int layerMask;
     private float smallerRadius;
+
+	private float currentSpeed = 0;
 
 	private Vector3 Position
 	{
@@ -23,32 +28,57 @@ public class FootController : MonoBehaviour
     private void Awake()
     {
         this.ownCollider = GetComponent<SphereCollider>();
+		this.currentGravity = transform.parent.GetComponentInChildren<Gravity>();
+
         this.layerMask = ~(1 << 8);
 
         // Reduce our radius by tolerance squared to avoid failing the SphereCast due to clipping with walls
         this.smallerRadius = ownCollider.radius - (tolerance * tolerance);
     }
 
-    private void LateUpdate()
+    private void FixedUpdate()
     {
         this.gameObject.layer = 8;
 
-        LiftPlayer();
+        bool lifted = LiftPlayer();
 
 		RaycastHit hit;
 		bool isGrounded = ProbeGround(out hit);
 
         DebugDraw.DrawMarker(hit.point, 0.25f, Color.red, 1);
 
-		if(isGrounded)
+		if(!lifted)
 		{
-			ClampPlayer(hit);
+			if (isGrounded)
+			{
+				ClampPlayer(hit);
+			}
+			else
+			{
+				PerformGravity();
+			}
 		}
 
         this.gameObject.layer = 0;
     }
 
-    private void LiftPlayer()
+	private void PerformGravity()
+	{
+		currentSpeed += gravity * Time.deltaTime;
+
+		RaycastHit hit;
+		if (!Physics.Raycast(Position, -transform.parent.up, out hit, currentSpeed, layerMask))
+		{
+			transform.parent.position -= transform.parent.up * currentSpeed;
+		}
+		else
+		{
+			transform.parent.position = hit.point + transform.parent.up * ownCollider.radius - transform.localPosition;
+			currentSpeed = 0;
+		}
+	}
+
+    private bool LiftPlayer()
     {
         Collider[] colliders = Physics.OverlapSphere(Position, smallerRadius, layerMask);
 
@@ -68,8 +98,11 @@ public class FootController : MonoBehaviour
 			if(closestPoint.y - (Position - transform.parent.up * ownCollider.radius).y <= stepHeight + tinyTolerance)
 			{
 				transform.parent.position += transform.parent.up * (closestPoint.y - getY(closestPoint));
+				return true;
 			}
         }
+
+		return false;
     }
 
     private void ClampPlayer(RaycastHit hit)
@@ -83,7 +116,7 @@ public class FootController : MonoBehaviour
     {
         RaycastHit hit;
 
-		if (Physics.Raycast(Position, -transform.parent.up, out hit, Mathf.Infinity, layerMask))
+		if (Physics.Raycast(Position, -transform.parent.up, out hit, stepHeight + tolerance, layerMask))
 		{
 			if ((hit.point - Position).magnitude > ownCollider.radius + stepHeight + tinyTolerance)
 			{
@@ -92,7 +125,7 @@ public class FootController : MonoBehaviour
 			}
 		}
 
-		if(Physics.SphereCast(Position, smallerRadius, -transform.up, out hit, Mathf.Infinity, layerMask))
+		if(Physics.SphereCast(Position, smallerRadius, -transform.up, out hit, stepHeight + tolerance, layerMask))
 		{
 			SimulateSphereCast(hit.normal, out hit);
 		}
