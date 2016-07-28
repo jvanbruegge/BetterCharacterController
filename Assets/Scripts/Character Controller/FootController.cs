@@ -11,8 +11,6 @@ public class FootController : MonoBehaviour
     private const float tolerance = 0.05f;
     private const float tinyTolerance = 0.01f;
 
-	private float gravity = 0.5f; //TODO: Move to gravity script
-
 	private Gravity currentGravity;
     private SphereCollider ownCollider;
     private int layerMask;
@@ -20,9 +18,20 @@ public class FootController : MonoBehaviour
 
 	private float currentSpeed = 0;
 
+	public Gravity CurrentGravity
+	{
+		get { return currentGravity; }
+		set { this.currentGravity = value; }
+	}
+
 	private Vector3 Position
 	{
 		get { return transform.parent.position + transform.localPosition + ownCollider.center;  }
+	}
+
+	private Vector3 GravityDirection
+	{
+		get { return (currentGravity.transform.position - Position).normalized; }
 	}
 
     private void Awake()
@@ -64,12 +73,12 @@ public class FootController : MonoBehaviour
 
 	private void PerformGravity()
 	{
-		currentSpeed += gravity * Time.deltaTime;
+		currentSpeed += currentGravity.gravity * Time.deltaTime;
 
 		RaycastHit hit;
-		if (!Physics.Raycast(Position, -transform.parent.up, out hit, currentSpeed, layerMask))
+		if (!Physics.Raycast(Position, GravityDirection, out hit, currentSpeed, layerMask))
 		{
-			transform.parent.position -= transform.parent.up * currentSpeed;
+			transform.parent.position += GravityDirection * currentSpeed;
 		}
 		else
 		{

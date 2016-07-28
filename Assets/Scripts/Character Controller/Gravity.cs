@@ -7,10 +7,11 @@ using UnityEngine;
  */
 public class Gravity : MonoBehaviour
 {
-    private Transform gravityTarget;
+	[SerializeField]
+	private float _gravity = 0.5f;
 
-    private void Awake()
-    {
-        this.gravityTarget = GetComponent<Transform>();
-    }
+	public float gravity
+	{
+		get { return _gravity; }
+	}
 }
