@@ -1,5 +1,12 @@
 using UnityEngine;
 
+public enum GroundType
+{
+	Airborn,
+	Sliding,
+	Grounded
+}
+
 [RequireComponent(typeof(SphereCollider))]
 public class FootController : MonoBehaviour
 {
@@ -7,6 +14,8 @@ public class FootController : MonoBehaviour
     private float standAngle = 30.0f;
     [SerializeField]
     private float stepHeight = 0.3f;
+	[SerializeField]
+	private float slideSlowing = 10;
 
     private const float tolerance = 0.05f;
     private const float tinyTolerance = 0.01f;
@@ -15,7 +24,8 @@ public class FootController : MonoBehaviour
     private int layerMask;
     private float smallerRadius;
 
-	private float currentSpeed = 0;
+	private Vector3 currentSpeed = Vector3.zero;
+	private GroundType currentGroundType = GroundType.Airborn;
 
 	public Gravity CurrentGravity { get; set; }
 
@@ -44,15 +54,22 @@ public class FootController : MonoBehaviour
     {
         this.gameObject.layer = 8;
 
-        bool lifted = LiftPlayer();
+		//bool lifted = LiftPlayer();
+		bool lifted = false;
 
 		RaycastHit hit;
 		Vector3 gravityDirection;
-		bool isGrounded = ProbeGround(out hit, out gravityDirection);
+		GroundType groundType = ProbeGround(out hit, out gravityDirection);
+
+		if(currentGroundType == GroundType.Airborn && groundType != GroundType.Airborn)
+		{
+			currentSpeed = gravityDirection * 0.1f;
+		}
+		currentGroundType = groundType;
 
 		if(!lifted)
 		{
-			if (isGrounded)
+			if (groundType == GroundType.Grounded)
 			{
 				ClampPlayer(hit);
 			}
@@ -67,9 +84,24 @@ public class FootController : MonoBehaviour
 
 	private void PerformGravity(RaycastHit raycastHit, Vector3 gravityDirection)
 	{
-		currentSpeed += CurrentGravity.gravity * Time.deltaTime;
+		Vector3 newSpeed = gravityDirection * CurrentGravity.gravity * Time.deltaTime;
+		if(currentGroundType == GroundType.Sliding)
+		{
+			newSpeed /= slideSlowing;
+		}
+		currentSpeed += newSpeed;
 
-		transform.parent.position += gravityDirection * currentSpeed;
+		RaycastHit hit;
+		if(Physics.SphereCast(Position, ownCollider.radius, currentSpeed, out hit, currentSpeed.magnitude + tolerance, layerMask))
+		{
+			Vector3 middle = hit.point + hit.normal * ownCollider.radius;
+
+			transform.parent.position = middle - transform.localPosition - ownCollider.center;
+		}
+		else
+		{
+			transform.parent.position += currentSpeed;
+		}
 	}
 
     private bool LiftPlayer()
@@ -101,16 +133,14 @@ public class FootController : MonoBehaviour
 
     private void ClampPlayer(RaycastHit hit)
     {
-        if ((hit.point - Position).magnitude * (1 - tinyTolerance) < ownCollider.radius) return;
-
 		transform.parent.position += transform.parent.up * (hit.point.y - getY(hit.point));
     }
 
-    private bool ProbeGround(out RaycastHit raycastHit, out Vector3 gravityDirection)
+    private GroundType ProbeGround(out RaycastHit raycastHit, out Vector3 gravityDirection)
     {
 		gravityDirection = GravityDirection;
 
-		if(Physics.SphereCast(Position - GravityDirection * tolerance, ownCollider.radius, GravityDirection, out raycastHit, currentSpeed + tolerance, layerMask)) //Check if we are colliding at all
+		if(Physics.SphereCast(Position - GravityDirection * tolerance, ownCollider.radius, GravityDirection, out raycastHit, currentSpeed.magnitude + tolerance, layerMask)) //Check if we are colliding at all
 		{
 			DebugDraw.DrawVector(raycastHit.point, -GravityDirection, 1, 0.25f, Color.cyan, 1);
 			DebugDraw.DrawVector(raycastHit.point, raycastHit.normal, 1, 0.25f, Color.blue, 1);
@@ -120,7 +150,7 @@ public class FootController : MonoBehaviour
 				RaycastHit hit;
 				Vector3 normalPit = raycastHit.point + raycastHit.normal;
 				Physics.Raycast(normalPit, raycastHit.point + GravityDirection * tinyTolerance - normalPit, out hit, 2, layerMask); //Get normal of the wall we are about to slide down
-				Vector3 cross = Vector3.Cross(raycastHit.normal, hit.normal);
+				Vector3 cross = Vector3.Cross(GravityDirection, hit.normal);
 				Vector3 wallDirection = Vector3.Cross(hit.normal, cross);
 				wallDirection = (wallDirection + GravityDirection).magnitude > (-wallDirection + GravityDirection).magnitude ? wallDirection : -wallDirection; //Make sure we point downwards
 
@@ -132,12 +162,12 @@ public class FootController : MonoBehaviour
 				if((floorHit.point - raycastHit.point).magnitude > stepHeight)
 				{
 					gravityDirection = wallDirection.normalized;
-					return false;
+					return GroundType.Sliding;
 				}
 			}
-			return true;
+			return GroundType.Grounded;
 		}
-		return false;
+		return GroundType.Airborn;
     }
 
     private float getY(Vector3 hit)
