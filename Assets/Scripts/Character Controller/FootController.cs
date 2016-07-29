@@ -47,10 +47,8 @@ public class FootController : MonoBehaviour
         bool lifted = LiftPlayer();
 
 		RaycastHit hit;
-		bool isGrounded = ProbeGround(out hit);
-
-        DebugDraw.DrawMarker(hit.point, 0.25f, Color.red, 1);
-		Debug.DrawRay(hit.point, hit.normal, Color.blue, 1);
+		Vector3 gravityDirection;
+		bool isGrounded = ProbeGround(out hit, out gravityDirection);
 
 		if(!lifted)
 		{
@@ -60,39 +58,18 @@ public class FootController : MonoBehaviour
 			}
 			else
 			{
-				PerformGravity(hit);
+				PerformGravity(hit, gravityDirection);
 			}
 		}
 
         this.gameObject.layer = 0;
     }
 
-	private void PerformGravity(RaycastHit raycastHit)
+	private void PerformGravity(RaycastHit raycastHit, Vector3 gravityDirection)
 	{
 		currentSpeed += CurrentGravity.gravity * Time.deltaTime;
 
-		if(Vector3.Angle(raycastHit.normal, -GravityDirection) > standAngle)
-		{
-			Vector3 planeNormal = Vector3.Cross(raycastHit.normal, -GravityDirection);
-			Vector3 pDirection = Vector3.Cross(planeNormal, raycastHit.normal);
-			Vector3 nDirection = -pDirection;
-			Vector3 direction = (GravityDirection + pDirection).magnitude < (GravityDirection + nDirection).magnitude ? nDirection : pDirection;
-
-			transform.parent.position += direction.normalized * currentSpeed;
-		}
-		else
-		{
-			RaycastHit hit;
-			if (!Physics.Raycast(Position, GravityDirection, out hit, currentSpeed, layerMask))
-			{
-				transform.parent.position += GravityDirection * currentSpeed;
-			}
-			else
-			{
-				transform.parent.position = hit.point + transform.parent.up * ownCollider.radius - transform.localPosition;
-				currentSpeed = 0;
-			}
-		}
+		transform.parent.position += gravityDirection * currentSpeed;
 	}
 
     private bool LiftPlayer()
@@ -129,22 +106,32 @@ public class FootController : MonoBehaviour
 		transform.parent.position += transform.parent.up * (hit.point.y - getY(hit.point));
     }
 
-    private bool ProbeGround(out RaycastHit raycastHit)
+    private bool ProbeGround(out RaycastHit raycastHit, out Vector3 gravityDirection)
     {
-		if(Physics.SphereCast(Position, ownCollider.radius, GravityDirection, out raycastHit, currentSpeed + tolerance, layerMask)) //Check if we are colliding at all
+		gravityDirection = GravityDirection;
+
+		if(Physics.SphereCast(Position - GravityDirection * tolerance, ownCollider.radius, GravityDirection, out raycastHit, currentSpeed + tolerance, layerMask)) //Check if we are colliding at all
 		{
-			if(Vector3.Angle(raycastHit.normal, -GravityDirection) > standAngle) //check if we can stand on the surface we are on
+			DebugDraw.DrawVector(raycastHit.point, -GravityDirection, 1, 0.25f, Color.cyan, 1);
+			DebugDraw.DrawVector(raycastHit.point, raycastHit.normal, 1, 0.25f, Color.blue, 1);
+
+			if (Vector3.Angle(raycastHit.normal, -GravityDirection) > standAngle) //check if we can stand on the surface we are on
 			{
 				RaycastHit hit;
-				Physics.Raycast(raycastHit.point + raycastHit.normal, raycastHit.point - GravityDirection * tinyTolerance, out hit, 2, layerMask); //Get normal of the wall we are about to slide down
+				Vector3 normalPit = raycastHit.point + raycastHit.normal;
+				Physics.Raycast(normalPit, raycastHit.point + GravityDirection * tinyTolerance - normalPit, out hit, 2, layerMask); //Get normal of the wall we are about to slide down
 				Vector3 cross = Vector3.Cross(raycastHit.normal, hit.normal);
 				Vector3 wallDirection = Vector3.Cross(hit.normal, cross);
 				wallDirection = (wallDirection + GravityDirection).magnitude > (-wallDirection + GravityDirection).magnitude ? wallDirection : -wallDirection; //Make sure we point downwards
+
+				DebugDraw.DrawVector(hit.point, hit.normal, 1, 0.25f, Color.red, 1);
+				DebugDraw.DrawVector(hit.point, wallDirection, 1, 0.25f, Color.green, 1);
 
 				RaycastHit floorHit;
 				Physics.Raycast(hit.point + hit.normal * tinyTolerance, wallDirection, out floorHit, Mathf.Infinity, layerMask);
 				if((floorHit.point - raycastHit.point).magnitude > stepHeight)
 				{
+					gravityDirection = wallDirection.normalized;
 					return false;
 				}
 			}
