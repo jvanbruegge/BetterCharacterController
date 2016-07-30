@@ -90,7 +90,7 @@ public class FootController : Controller
 		currentSpeed = nextSpeed(currentSpeed, gravityDirection);
 
 		RaycastHit hit;
-		if(Physics.SphereCast(Position, ownCollider.radius, currentSpeed, out hit, currentSpeed.magnitude * Time.deltaTime + tolerance, layerMask))
+		if(Physics.SphereCast(Position, ownCollider.radius, currentSpeed, out hit, currentSpeed.magnitude + tolerance, layerMask))
 		{
 			Vector3 middle = hit.point + hit.normal * ownCollider.radius;
 			Vector3 newPosition = middle - transform.localPosition - ownCollider.center;
@@ -139,9 +139,7 @@ public class FootController : Controller
     {
 		gravityDirection = GravityDirection;
 
-		if(Physics.SphereCast(
-			Position - GravityDirection * tolerance, ownCollider.radius, GravityDirection, out raycastHit, nextSpeed(currentSpeed, GravityDirection).magnitude * Time.deltaTime + tolerance * 2, layerMask)
-		) //Check if we are colliding at all
+		if(Physics.SphereCast(Position - GravityDirection * tolerance, ownCollider.radius, GravityDirection, out raycastHit, tolerance * 2, layerMask)) //Check if we are colliding at all
 		{
 			DebugDraw.DrawVector(raycastHit.point, -GravityDirection, 1, 0.25f, Color.cyan, 1);
 			DebugDraw.DrawVector(raycastHit.point, raycastHit.normal, 1, 0.25f, Color.blue, 1);
