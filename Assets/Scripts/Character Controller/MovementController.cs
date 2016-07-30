@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Linq;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class MovementController : MonoBehaviour
 {
@@ -6,10 +8,16 @@ public class MovementController : MonoBehaviour
 	private float movementSpeed = 2f;
 
 	private Vector3 movement;
+	private List<KeyValuePair<int, Vector3>> vetos = new List<KeyValuePair<int, Vector3>>();
 
 	public Vector3 Movement
 	{
 		get { return movement; }
+	}
+
+	public void addVeto(int weight, Vector3 alternative)
+	{
+		this.vetos.Add(new KeyValuePair<int, Vector3>(weight, alternative));
 	}
 
 	private void Update()
@@ -34,12 +42,14 @@ public class MovementController : MonoBehaviour
 			movement += transform.right;
 		}
 
-		if(movement != Vector3.zero)
-		{
-			movement = movement.normalized;
-		}
+		this.movement = movement.normalized * movementSpeed;
+	}
 
-		this.movement = movement;
+	private void LateUpdate()
+	{
+		Vector3 desiredPosition = vetos.Aggregate(new KeyValuePair<int, Vector3>(0, movement * Time.deltaTime + transform.position), (acc, curr) => acc.Key < curr.Key ? curr : acc).Value;
+		transform.position = desiredPosition;
+		vetos.Clear();
 	}
 
 	//++++++++++++++++ Override those methods in a subclass to plug in a custom input logic +++++++++++++++++++++++//

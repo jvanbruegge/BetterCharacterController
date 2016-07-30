@@ -3,7 +3,7 @@
 [RequireComponent(typeof(SphereCollider))]
 public class Controller : MonoBehaviour
 {
-	private MovementController movementController;
+	protected MovementController movementController;
 
 	protected Vector3 Movement
 	{
@@ -15,7 +15,7 @@ public class Controller : MonoBehaviour
 		get { return movementController.transform; }
 	}
 
-	private void Awake()
+	protected virtual void Awake()
 	{
 		this.movementController = GetComponentInParent<MovementController>();
 	}

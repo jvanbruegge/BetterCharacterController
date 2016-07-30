@@ -38,10 +38,10 @@ public class FootController : Controller
 		get { return (CurrentGravity.transform.position - Position).normalized; }
 	}
 
-    private void Awake()
+    protected override void Awake()
     {
+		base.Awake();
         this.ownCollider = GetComponent<SphereCollider>();
-		this.CurrentGravity = Parent.GetComponentInChildren<Gravity>();
 
         this.layerMask = ~(1 << 8);
 
@@ -49,7 +49,12 @@ public class FootController : Controller
         this.smallerRadius = ownCollider.radius - (tolerance * tolerance);
     }
 
-    private void FixedUpdate()
+	private void Start()
+	{
+		this.CurrentGravity = Parent.GetComponentInChildren<Gravity>();
+	}
+
+    private void Update()
     {
         this.gameObject.layer = 8;
 
@@ -82,23 +87,19 @@ public class FootController : Controller
 
 	private void PerformGravity(RaycastHit raycastHit, Vector3 gravityDirection)
 	{
-		Vector3 newSpeed = gravityDirection * CurrentGravity.gravity * Time.deltaTime;
-		if(currentGroundType == GroundType.Sliding)
-		{
-			newSpeed /= slideSlowing;
-		}
-		currentSpeed += newSpeed;
+		currentSpeed = nextSpeed(currentSpeed, gravityDirection);
 
 		RaycastHit hit;
-		if(Physics.SphereCast(Position, ownCollider.radius, currentSpeed, out hit, currentSpeed.magnitude + tolerance, layerMask))
+		if(Physics.SphereCast(Position, ownCollider.radius, currentSpeed, out hit, currentSpeed.magnitude * Time.deltaTime + tolerance, layerMask))
 		{
 			Vector3 middle = hit.point + hit.normal * ownCollider.radius;
+			Vector3 newPosition = middle - transform.localPosition - ownCollider.center;
 
-			Parent.position = middle - transform.localPosition - ownCollider.center;
+			this.movementController.addVeto(50, newPosition);
 		}
 		else
 		{
-			Parent.position += currentSpeed;
+			this.movementController.addVeto(20, currentSpeed + Parent.position);
 		}
 	}
 
@@ -121,7 +122,7 @@ public class FootController : Controller
 
 			if(closestPoint.y - (Position - Parent.up * ownCollider.radius).y <= stepHeight + tinyTolerance)
 			{
-				Parent.position += Parent.up * (closestPoint.y - getY(closestPoint));
+				this.movementController.addVeto(60, Parent.up * (closestPoint.y - getY(closestPoint)) + Movement * Time.deltaTime + Parent.position);
 				return true;
 			}
         }
@@ -131,14 +132,16 @@ public class FootController : Controller
 
     private void ClampPlayer(RaycastHit hit)
     {
-		Parent.position += Parent.up * (hit.point.y - getY(hit.point));
+		this.movementController.addVeto(10, Parent.up * (hit.point.y - getY(hit.point)) + Movement * Time.deltaTime + Parent.position);
     }
 
     private GroundType ProbeGround(out RaycastHit raycastHit, out Vector3 gravityDirection)
     {
 		gravityDirection = GravityDirection;
 
-		if(Physics.SphereCast(Position - GravityDirection * tolerance, ownCollider.radius, GravityDirection, out raycastHit, currentSpeed.magnitude + tolerance, layerMask)) //Check if we are colliding at all
+		if(Physics.SphereCast(
+			Position - GravityDirection * tolerance, ownCollider.radius, GravityDirection, out raycastHit, nextSpeed(currentSpeed, GravityDirection).magnitude * Time.deltaTime + tolerance * 2, layerMask)
+		) //Check if we are colliding at all
 		{
 			DebugDraw.DrawVector(raycastHit.point, -GravityDirection, 1, 0.25f, Color.cyan, 1);
 			DebugDraw.DrawVector(raycastHit.point, raycastHit.normal, 1, 0.25f, Color.blue, 1);
@@ -149,8 +152,7 @@ public class FootController : Controller
 				Vector3 normalPit = raycastHit.point + raycastHit.normal;
 				Physics.Raycast(normalPit, raycastHit.point + GravityDirection * tinyTolerance - normalPit, out hit, 2, layerMask); //Get normal of the wall we are about to slide down
 				Vector3 cross = Vector3.Cross(GravityDirection, hit.normal);
-				Vector3 wallDirection = Vector3.Cross(hit.normal, cross);
-				wallDirection = (wallDirection + GravityDirection).magnitude > (-wallDirection + GravityDirection).magnitude ? wallDirection : -wallDirection; //Make sure we point downwards
+				Vector3 wallDirection = pointDown(Vector3.Cross(hit.normal, cross), GravityDirection);
 
 				DebugDraw.DrawVector(hit.point, hit.normal, 1, 0.25f, Color.red, 1);
 				DebugDraw.DrawVector(hit.point, wallDirection, 1, 0.25f, Color.green, 1);
@@ -158,12 +160,12 @@ public class FootController : Controller
 				RaycastHit floorHit;
 				Physics.Raycast(hit.point + hit.normal * tinyTolerance, wallDirection, out floorHit, Mathf.Infinity, layerMask);
 
-				DebugDraw.DrawMarker(floorHit.point, 0.25f, Color.red, 1);
-				DebugDraw.DrawMarker(raycastHit.point, 0.25f, Color.black, 1);
+				Vector3 raycastCross = Vector3.Cross(GravityDirection, raycastHit.normal);
+				Vector3 slideDirection = pointDown(Vector3.Cross(raycastHit.normal, raycastCross), GravityDirection);
 
 				if ((floorHit.point - raycastHit.point).magnitude > stepHeight + tolerance)
 				{
-					gravityDirection = wallDirection.normalized;
+					gravityDirection = slideDirection.normalized;
 					return GroundType.Sliding;
 				}
 			}
@@ -171,6 +173,21 @@ public class FootController : Controller
 		}
 		return GroundType.Airborn;
     }
+
+	private Vector3 pointDown(Vector3 vector, Vector3 gravityDirection)
+	{
+		return (vector + gravityDirection).magnitude > (-vector + gravityDirection).magnitude ? vector : -vector;
+	}
+
+	private Vector3 nextSpeed(Vector3 currentSpeed, Vector3 gravityDirection)
+	{
+		Vector3 newSpeed = gravityDirection * CurrentGravity.gravity * Time.deltaTime;
+		if (currentGroundType == GroundType.Sliding)
+		{
+			newSpeed /= slideSlowing;
+		}
+		return currentSpeed + newSpeed;
+	}
 
     private float getY(Vector3 hit)
     {
