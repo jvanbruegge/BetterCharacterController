@@ -54,8 +54,7 @@ public class FootController : MonoBehaviour
     {
         this.gameObject.layer = 8;
 
-		//bool lifted = LiftPlayer();
-		bool lifted = false;
+		bool lifted = LiftPlayer();
 
 		RaycastHit hit;
 		Vector3 gravityDirection;
@@ -159,7 +158,11 @@ public class FootController : MonoBehaviour
 
 				RaycastHit floorHit;
 				Physics.Raycast(hit.point + hit.normal * tinyTolerance, wallDirection, out floorHit, Mathf.Infinity, layerMask);
-				if((floorHit.point - raycastHit.point).magnitude > stepHeight)
+
+				DebugDraw.DrawMarker(floorHit.point, 0.25f, Color.red, 1);
+				DebugDraw.DrawMarker(raycastHit.point, 0.25f, Color.black, 1);
+
+				if ((floorHit.point - raycastHit.point).magnitude > stepHeight + tolerance)
 				{
 					gravityDirection = wallDirection.normalized;
 					return GroundType.Sliding;
