@@ -7,8 +7,7 @@ public enum GroundType
 	Grounded
 }
 
-[RequireComponent(typeof(SphereCollider))]
-public class FootController : MonoBehaviour
+public class FootController : Controller
 {
     [SerializeField]
     private float standAngle = 30.0f;
@@ -31,7 +30,7 @@ public class FootController : MonoBehaviour
 
 	private Vector3 Position
 	{
-		get { return transform.parent.position + transform.localPosition + ownCollider.center;  }
+		get { return Parent.position + transform.localPosition + ownCollider.center;  }
 	}
 
 	private Vector3 GravityDirection
@@ -42,7 +41,7 @@ public class FootController : MonoBehaviour
     private void Awake()
     {
         this.ownCollider = GetComponent<SphereCollider>();
-		this.CurrentGravity = transform.parent.GetComponentInChildren<Gravity>();
+		this.CurrentGravity = Parent.GetComponentInChildren<Gravity>();
 
         this.layerMask = ~(1 << 8);
 
@@ -95,11 +94,11 @@ public class FootController : MonoBehaviour
 		{
 			Vector3 middle = hit.point + hit.normal * ownCollider.radius;
 
-			transform.parent.position = middle - transform.localPosition - ownCollider.center;
+			Parent.position = middle - transform.localPosition - ownCollider.center;
 		}
 		else
 		{
-			transform.parent.position += currentSpeed;
+			Parent.position += currentSpeed;
 		}
 	}
 
@@ -120,9 +119,9 @@ public class FootController : MonoBehaviour
                 }
             }
 
-			if(closestPoint.y - (Position - transform.parent.up * ownCollider.radius).y <= stepHeight + tinyTolerance)
+			if(closestPoint.y - (Position - Parent.up * ownCollider.radius).y <= stepHeight + tinyTolerance)
 			{
-				transform.parent.position += transform.parent.up * (closestPoint.y - getY(closestPoint));
+				Parent.position += Parent.up * (closestPoint.y - getY(closestPoint));
 				return true;
 			}
         }
@@ -132,7 +131,7 @@ public class FootController : MonoBehaviour
 
     private void ClampPlayer(RaycastHit hit)
     {
-		transform.parent.position += transform.parent.up * (hit.point.y - getY(hit.point));
+		Parent.position += Parent.up * (hit.point.y - getY(hit.point));
     }
 
     private GroundType ProbeGround(out RaycastHit raycastHit, out Vector3 gravityDirection)
