@@ -46,10 +46,10 @@ public static class DebugDraw
         Debug.DrawRay(position, normal * size, color, duration, depthTest);
     }
 
-    public static void DrawVector(Vector3 position, Vector3 direction, float raySize, float markerSize, Color color, float duration, bool depthTest = true)
+    public static void DrawVector(Vector3 start, Vector3 end, float markerSize, Color color, float duration, bool depthTest = true)
     {
-        Debug.DrawRay(position, direction * raySize, color, 0, false);
-        DebugDraw.DrawMarker(position + direction * raySize, markerSize, color, 0, false);
+        Debug.DrawLine(start, end, color, 0, false);
+        DebugDraw.DrawMarker(end, markerSize, color, 0, false);
     }
 
     public static void DrawTriangle(Vector3 a, Vector3 b, Vector3 c, Color color)
