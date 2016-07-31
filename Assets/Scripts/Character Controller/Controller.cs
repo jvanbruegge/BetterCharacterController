@@ -42,4 +42,21 @@ public class Controller : MonoBehaviour
 	{
 		return (vector + direction).magnitude > (-vector + direction).magnitude ? vector : -vector;
 	}
+
+	protected RaycastHit getWallHit(RaycastHit originalHit)
+	{
+		RaycastHit hit;
+		Vector3 normalPit = originalHit.point + originalHit.normal;
+		Physics.Raycast(normalPit, originalHit.point - Parent.up * tinyTolerance - normalPit, out hit, 2, layerMask);
+		return hit;
+	}
+
+	protected RaycastHit getFloorHit(RaycastHit wallHit)
+	{
+		Vector3 cross = Vector3.Cross(-Parent.up, wallHit.normal);
+		Vector3 floorDirection = pointTowards(Vector3.Cross(wallHit.normal, cross), -Parent.up);
+		RaycastHit floorHit;
+		Physics.Raycast(wallHit.point + wallHit.normal * tinyTolerance, floorDirection, out floorHit, Mathf.Infinity, layerMask);
+		return floorHit;
+	}
 }

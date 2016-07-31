@@ -43,8 +43,6 @@ public class FootController : Controller
 
     private void Update()
     {
-        this.gameObject.layer = 8;
-
 		bool lifted = LiftPlayer();
 
 		RaycastHit hit;
@@ -68,8 +66,6 @@ public class FootController : Controller
 				PerformGravity(hit, gravityDirection);
 			}
 		}
-
-        this.gameObject.layer = 0;
     }
 
 	private void PerformGravity(RaycastHit raycastHit, Vector3 gravityDirection)
@@ -156,23 +152,6 @@ public class FootController : Controller
 		}
 		return GroundType.Airborn;
     }
-
-	private RaycastHit getWallHit(RaycastHit originalHit)
-	{
-		RaycastHit hit;
-		Vector3 normalPit = originalHit.point + originalHit.normal;
-		Physics.Raycast(normalPit, originalHit.point + GravityDirection * tinyTolerance - normalPit, out hit, 2, layerMask);
-		return hit;
-	}
-
-	private RaycastHit getFloorHit(RaycastHit wallHit)
-	{
-		Vector3 cross = Vector3.Cross(GravityDirection, wallHit.normal);
-		Vector3 floorDirection = pointTowards(Vector3.Cross(wallHit.normal, cross), GravityDirection);
-		RaycastHit floorHit;
-		Physics.Raycast(wallHit.point + wallHit.normal * tinyTolerance, floorDirection, out floorHit, Mathf.Infinity, layerMask);
-		return floorHit;
-	}
 
 	private Vector3 nextSpeed(Vector3 currentSpeed, Vector3 gravityDirection)
 	{
