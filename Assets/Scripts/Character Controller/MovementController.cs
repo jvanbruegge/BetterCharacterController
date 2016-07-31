@@ -6,6 +6,8 @@ public class MovementController : MonoBehaviour
 {
 	[SerializeField]
 	private float movementSpeed = 2f;
+	[SerializeField]
+	private float slideSlowing = 10;
 
 	private Vector3 movement;
 	private List<KeyValuePair<int, Vector3>> vetos = new List<KeyValuePair<int, Vector3>>();
@@ -13,6 +15,11 @@ public class MovementController : MonoBehaviour
 	public Vector3 Movement
 	{
 		get { return movement; }
+	}
+
+	public float SlideSlowing
+	{
+		get { return slideSlowing;  }
 	}
 
 	public void addVeto(int weight, Vector3 alternative)
